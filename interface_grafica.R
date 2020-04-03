@@ -108,13 +108,13 @@ n <- 14
 qual_col_pals = brewer.pal.info[brewer.pal.info$category == 'qual',]
 col_vector = unlist(mapply(brewer.pal, qual_col_pals$maxcolors, rownames(qual_col_pals)))
 white = colorRampPalette(c('white', 'gray'))
-img <- "Imgs/Logo Vertical - colorida sem fundo.png"
+img <- "https://upload.wikimedia.org/wikipedia/commons/thumb/2/29/Logo_ANTT.svg/1200px-Logo_ANTT.svg.png"
 
 m1 <- mapview(myshp, zcol='Ferrovia',
               legend = TRUE,
               layer.name = "Ferrovia",
               color = col_vector) %>%
-  leafem::addLogo(img, src = "local", width = 200, height = 120, url = "http://www.antt.gov.br/") %>%
+  leafem::addLogo(img, width = 200, height = 100, url = "http://www.antt.gov.br/") %>%
   
   addMarkers(data = myshp2, lng = myshp2@coords[,1],
              lat=myshp2@coords[,2],
