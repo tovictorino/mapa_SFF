@@ -110,11 +110,12 @@ col_vector = unlist(mapply(brewer.pal, qual_col_pals$maxcolors, rownames(qual_co
 white = colorRampPalette(c('white', 'gray'))
 img <- "https://upload.wikimedia.org/wikipedia/commons/thumb/2/29/Logo_ANTT.svg/1200px-Logo_ANTT.svg.png"
 
+
 m1 <- mapview(myshp, zcol='Ferrovia',
               legend = TRUE,
               layer.name = "Ferrovia",
               color = col_vector) %>%
-  leafem::addLogo(img, width = 200, height = 100, url = "http://www.antt.gov.br/") %>%
+  leafem::addLogo(img, width = 120, height = 60, url = "http://www.antt.gov.br/", position="topleft") %>%
   
   addMarkers(data = myshp2, lng = myshp2@coords[,1],
              lat=myshp2@coords[,2],
@@ -122,13 +123,13 @@ m1 <- mapview(myshp, zcol='Ferrovia',
              label=~`Código Estação`,
              group='Código Estação') %>%
   
+  addControl("Pesquisa de Estações",
+             position = "topleft") %>%
+  
   addSearchFeatures(targetGroups = 'Código Estação',
                     options = searchFeaturesOptions(
                       zoom=12, openPopup = TRUE, firstTipSubmit = TRUE,
-                      autoCollapse = TRUE, hideMarkerOnCollapse = TRUE )) %>%
-  
-  addLayersControl(overlayGroups = c("Código Estação", "Ferrovia"),
-                   options = layersControlOptions(collapsed = FALSE)) %>%
+                      autoCollapse = TRUE, hideMarkerOnCollapse = TRUE)) %>%
   
   hideGroup("Código Estação")
 
