@@ -1,21 +1,24 @@
-library(rgdal)
-library(mapview)
 library(leaflet)
-library(RColorBrewer)
+library(mapview)
+library(leaflet.extras)
+library(rgdal)
 library(dplyr)
-library(png)
+library(RColorBrewer)
 
+####################### MAPA DO SUBSISTEMA FERROVIÁRIO FEDERAL #######################
 
-####################### AJUSTE DAS CAMADAS DO SHAPEFILE #######################
+####################### AJUSTES AO SHAPEFILE ####################### 
+
 
 # Leitura das bases georreferenciadas
-## myshp = linhas. myshp2 = estações
+## myshp é um shapefile do tipo linestring das linhas do SFF. 
+## myshp2 é um shapefile do tipo point das estações cadastradas na Declaração de Rede
 myshp <- readOGR(dsn=path.expand("shp_atualizado"),
                  layer="dbo_tblLinhaEstacao_spatial_linestring", stringsAsFactors = FALSE)
 myshp2 <- readOGR(dsn=path.expand("shp_atualizado"),
                   layer="dbo_tblEstacao_spatial_point", stringsAsFactors = FALSE, encoding = "UTF-8")
 
-# Substituição do CodigoFerr, antes numérico, agora string, com o nome das estações
+# Substituição do CodigoFerr, antes numérico, agora string, com o nome das estações cadastradas na DR
 tblFerrovia <- readxl::read_excel("Dados/tblFerrovia.xlsx")
 tblFerrovia$CodigoFerr <- tblFerrovia$CodigoFerrovia
 myshp@data <- plyr::join(myshp@data,
@@ -25,19 +28,21 @@ myshp2@data <- plyr::join(myshp2@data,
                           tblFerrovia,
                           by='CodigoFerr')
 
-# Substituição dos códigos de linha pelo nome completo
+# Substituição do CodigoLi00, antes numérico, agora string, com o nome das linhas cadastradas na DR
 tblLinha <- readxl::read_excel("Dados/tblLinha.xlsx")
 tblLinha$CodigoLi00 <- tblLinha$CodigoLinha
 myshp@data <- plyr::join(myshp@data,
                          tblLinha,
                          by='CodigoLi00')
 
-# Substituição dos códigos de estação pelo código de três letras
+# Substituição do CodigoEsta, antes numérico, agora string, com o código de tres letras
 tblEstacao <- readxl::read_excel("Dados/tblEstacao.xlsx")
 tblEstacao$CodigoEsta <- tblEstacao$CodigoEstacao
 myshp@data <- plyr::join(myshp@data,
                          tblEstacao,
                          by='CodigoEsta')
+
+# Merge da tabela de atributos do shapefile com a Declaração de Rede 2020
 DR_2020 <- readxl::read_excel("Dados/dr2020_original.xlsx")
 DR_2020$linesta <- paste(DR_2020$Linha, DR_2020$B, sep='!')
 myshp@data$linesta <- paste(myshp@data$NomeLinha, myshp@data$CodigoTresLetrasEstacao, sep='!')
@@ -45,48 +50,18 @@ myshp@data <- plyr::join(myshp@data,
                          DR_2020,
                          by='linesta')
 
-# Substituição dos códigos de bitola pela sua classificação real
-{myshp@data[myshp@data[["CodigoBito"]] == '1', 'CodigoBito'] <- 'Métrica'
-  myshp@data[myshp@data[["CodigoBito"]] == '3', 'CodigoBito'] <- 'Larga'
-  myshp@data[myshp@data[["CodigoBito"]] == '5', 'CodigoBito'] <- 'Mista'}
+# Ajustes à tabela de atributos do shapefile: drop de colunas desnecessárias e 
+# alteração dos nomes das variáveis
+myshp2@data <- select(myshp2@data, -c(CodigoEsta, CodigoFerr, CodigoMuni, DataExclus,
+                                      IndicadorP, CodigoPort, CodigoEsca, CodigoEsca,
+                                      CodigoArqu, IndicadorT, IndicadorF,LogotipoFerrovia,
+                                      DataExclusao, IndicadorObrigatorioDesempenhoProducao))
 
+myshp2@data <- rename(myshp2@data, "Nome Estação" = NomeEstaca)
+myshp2@data <- rename(myshp2@data, "Código Estação" = CodigoTres)
+myshp2@data <- rename(myshp2@data, "Ferrovia" = NomeFerrovia)
 
-# Drop das colunas desnecessarias
-myshp@data <- myshp@data[ , !names(myshp@data) %in% c("CodigoLinh", "CodigoLi00",
-                                                      "CodigoEsta", "CodigoBito",
-                                                      "NumeroSequ", "IndicadorC",
-                                                      "IndicadorE", "CodigoLinha",
-                                                      "CodigoTresC",
-                                                      "CodigoLinh", "CodigoLi00",
-                                                      "CodigoEsta", "CodigoFerr",
-                                                      "CodigoFerrovia", "SiglaFerrovia",
-                                                      "LogotipoFerrovia", "DataExclusao",
-                                                      "IndicadorObrigatorioDesempenhoProducao",
-                                                      "CodigoLinha", "CodigoEstacao",
-                                                      "linesta", "Ferrovia", "Linha",
-                                                      "X", "Ferrovia", "Linha",
-                                                      "x", "CodigoTresLetrasEstacao",
-                                                      "ExtensÃ.o..km.")]
-
-myshp2@data <- myshp2@data[ , !names(myshp2@data) %in% c("CodigoEsta","CodigoFerr", 
-                                                         "CodigoMuni", "DataExclus",
-                                                         "IndicadorP", "CodigoPort",
-                                                         "CodigoEsca", "CodigoArqu",
-                                                         "IndicadorT", "IndicadorF",
-                                                         "CodigoFerrovia", "LogotipoFerrovia",
-                                                         "DataExclusao", 
-                                                         "IndicadorObrigatorioDesempenhoProducao")]
-
-colnames(myshp@data)[which(names(myshp@data) == "NumeroQuil")] <- "Marco Quilométrico"
-colnames(myshp@data)[which(names(myshp@data) == "NumeroExte")] <- "Extensão do Entre Pátio (km)"
-colnames(myshp@data)[which(names(myshp@data) == "NomeFerrovia")] <- "Ferrovia"
-colnames(myshp@data)[which(names(myshp@data) == "NomeReduzidoFerrovia")] <- "Sigla-Ferrovia"
-colnames(myshp@data)[which(names(myshp@data) == "NomeLinha")] <- "Linha"
-colnames(myshp2@data)[which(names(myshp2@data) == "NomeEstaca")] <- "Nome Estação"
-colnames(myshp2@data)[which(names(myshp2@data) == "CodigoTres")] <- "Código Estação"
-colnames(myshp2@data)[which(names(myshp2@data) == "NomeFerrovia")] <- "Ferrovia"
-colnames(myshp2@data)[which(names(myshp2@data) == "NomeReduzidoFerrovia")] <- "Sigla-Ferrovia"
-
+## Composição do nome completo das estações: Nome da Estação (Código de Três Letras)
 df_estac <- tibble(myshp2@data$`Código Estação`, myshp2@data$`Nome Estação`)
 colnames(df_estac) <- c('A','NomeA')
 myshp@data <- plyr::join(myshp@data,
@@ -100,43 +75,96 @@ myshp@data <- plyr::join(myshp@data,
 myshp@data$`Nome Estação A` <- paste(myshp@data$NomeA, " (", myshp@data$A,")", sep="")
 myshp@data$`Nome Estação B` <- paste(myshp@data$NomeB, " (", myshp@data$B,")", sep="")
 myshp2@data$`Código Estação` <- paste(myshp2@data$`Nome Estação`, " (", myshp2@data$`Código Estação`,")", sep="")
-myshp@data <- myshp@data[ , !names(myshp@data) %in% c("A", "B")]
 
-library(leaflet.extras)
+myshp@data <- select(myshp@data, -c(B, A, linesta, CodigoEsta, CodigoLi00, CodigoFerr,
+                                    CodigoLinh, NumeroSequ, IndicadorC, IndicadorE,
+                                    NomeReduzidoFerrovia, LogotipoFerrovia, DataExclusao,
+                                    IndicadorObrigatorioDesempenhoProducao, CodigoTresLetrasEstacao,
+                                    Ferrovia, CodigoBito, NomeLinha, NomeA, NomeB,
+                                    CodigoFerrovia, CodigoLinha, CodigoEstacao))
 
-n <- 14
-qual_col_pals = brewer.pal.info[brewer.pal.info$category == 'qual',]
-col_vector = unlist(mapply(brewer.pal, qual_col_pals$maxcolors, rownames(qual_col_pals)))
-white = colorRampPalette(c('white', 'gray'))
+myshp@data <- rename(myshp@data, "Marco Quilométrico" = NumeroQuil)
+myshp@data <- rename(myshp@data, "Extensão do Entre Pátio (km)" = NumeroExte)
+myshp@data <- rename(myshp@data, "Ferrovia" = NomeFerrovia)
+myshp@data <- rename(myshp@data, "Sigla - Ferrovia" = SiglaFerrovia)
+
+myshp@data <- myshp@data %>%
+  select("Ferrovia", "Sigla - Ferrovia", "Nome Estação A", "Nome Estação B", everything())
+
+# Construção da paleta de cores a ser usada no mapa para representação da Ocupação
+col_vector = c(1:13)
+col_vector[[1]] = 'chartreuse4'
+col_vector[[2]] = 'cyan3'
+col_vector[[3]] = 'orange'
+col_vector[[4]] = 'steelblue'
+col_vector[[5]] = 'darkblue'
+col_vector[[6]] = 'darkgoldenrod3'
+col_vector[[7]] = 'mediumorchid3'
+col_vector[[8]] = 'green4'
+col_vector[[9]] = 'brown4'
+col_vector[[10]] = 'deeppink3'
+col_vector[[11]] = 'yellow3'
+col_vector[[12]] = 'red4'
+col_vector[[13]] = 'orange'
+
+
+# Logo ANTT
 img <- "https://upload.wikimedia.org/wikipedia/commons/thumb/2/29/Logo_ANTT.svg/1200px-Logo_ANTT.svg.png"
 
-
-m1 <- mapview(myshp, zcol='Ferrovia',
-              legend = TRUE,
-              layer.name = "Ferrovia",
-              color = col_vector) %>%
-  leafem::addLogo(img, width = 120, height = 60, url = "http://www.antt.gov.br/", position="topleft") %>%
+# Criação do mapa
+mapa <- mapview(myshp, zcol="Sigla - Ferrovia",
+                legend = TRUE,
+                layer.name = 'Ferrovia',
+                color = col_vector) %>% 
   
-  addMarkers(data = myshp2, lng = myshp2@coords[,1],
-             lat=myshp2@coords[,2],
-             popup = ~`Código Estação`,
-             label=~`Código Estação`,
-             group='Código Estação') %>%
+  leafem::addLogo(img, width = 120, height = 60, url = "http://www.antt.gov.br/", position="topleft") %>%
   
   addControl("Pesquisa de Estações",
              position = "topleft") %>%
   
+  addCircleMarkers(data = myshp2, lng = myshp2@coords[,1],
+                   lat=myshp2@coords[,2],
+                   popup = ~`Código Estação`,
+                   label=~`Código Estação`,
+                   group='Código Estação') %>%
+  
   addSearchFeatures(targetGroups = 'Código Estação',
                     options = searchFeaturesOptions(
                       zoom=12, openPopup = TRUE, firstTipSubmit = TRUE,
-                      autoCollapse = TRUE, hideMarkerOnCollapse = TRUE)) %>%
+                      autoCollapse = FALSE, hideMarkerOnCollapse = FALSE)) %>%
   
-  hideGroup("Código Estação")
+  hideGroup('Código Estação')
 
-  
-  
-  
-  mapshot(m1, url = "mapa_SFF.html", selfcontained = FALSE)
+mapshot(mapa, url = "mapa_SFF.html", selfcontained = FALSE)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
