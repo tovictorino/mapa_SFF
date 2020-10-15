@@ -44,6 +44,7 @@ myshp@data <- plyr::join(myshp@data,
 
 # Merge da tabela de atributos do shapefile com a Declaração de Rede 2020
 DR_2020 <- readxl::read_excel("Dados/dr2020_original.xlsx")
+DR_2020 <- DR_2020 %>% select(Linha, A, B)
 DR_2020$linesta <- paste(DR_2020$Linha, DR_2020$B, sep='!')
 myshp@data$linesta <- paste(myshp@data$NomeLinha, myshp@data$CodigoTresLetrasEstacao, sep='!')
 myshp@data <- plyr::join(myshp@data,
@@ -80,7 +81,7 @@ myshp@data <- select(myshp@data, -c(B, A, linesta, CodigoEsta, CodigoLi00, Codig
                                     CodigoLinh, NumeroSequ, IndicadorC, IndicadorE,
                                     NomeReduzidoFerrovia, LogotipoFerrovia, DataExclusao,
                                     IndicadorObrigatorioDesempenhoProducao, CodigoTresLetrasEstacao,
-                                    Ferrovia, CodigoBito, NomeLinha, NomeA, NomeB,
+                                    CodigoBito, NomeLinha, NomeA, NomeB,
                                     CodigoFerrovia, CodigoLinha, CodigoEstacao))
 
 myshp@data <- rename(myshp@data, "Marco Quilométrico" = NumeroQuil)
@@ -89,7 +90,7 @@ myshp@data <- rename(myshp@data, "Ferrovia" = NomeFerrovia)
 myshp@data <- rename(myshp@data, "Sigla - Ferrovia" = SiglaFerrovia)
 
 myshp@data <- myshp@data %>%
-  select("Ferrovia", "Sigla - Ferrovia", "Nome Estação A", "Nome Estação B", everything())
+  select("Ferrovia", "Sigla - Ferrovia", "Linha", "Nome Estação A", "Nome Estação B", everything())
 
 # Construção da paleta de cores a ser usada no mapa para representação da Ocupação
 col_vector = c(1:13)
@@ -133,9 +134,9 @@ mapa <- mapview(myshp, zcol="Sigla - Ferrovia",
                       zoom=12, openPopup = TRUE, firstTipSubmit = TRUE,
                       autoCollapse = FALSE, hideMarkerOnCollapse = FALSE)) %>%
   
-  hideGroup('Código Estação')
+  groupOptions('Código Estação', zoomLevels = 10:30)
 
-mapshot(mapa, url = "mapa_SFF.html", selfcontained = FALSE)
+mapshot(mapa, url = "index.html", selfcontained = TRUE)
 
 
 
